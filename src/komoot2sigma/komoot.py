@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import requests
 from komootgpx.api import KomootApi
-
-BASE_URL = "https://api.komoot.de"
+from komootgpx.gpxcompiler import GpxCompiler
 
 
 @dataclass
@@ -79,12 +77,12 @@ class KomootClient:
         return self.list_tours(tour_type="tour_planned")
 
     def download_gpx(self, tour_id: str) -> bytes:
-        """Download tour as raw GPX bytes."""
-        url = f"{BASE_URL}/v007/tours/{tour_id}.gpx"
-        response = requests.get(
-            url, auth=(self._api.user_id, self._api.token)
-        )
-        if response.status_code == 404:
-            raise RuntimeError(f"Tour {tour_id} not found.")
-        response.raise_for_status()
-        return response.content
+        """Download tour as GPX bytes.
+
+        Uses the same approach as KomootGPX: fetches the full tour JSON
+        with embedded coordinates and compiles to GPX.
+        """
+        tour_data = self._api.fetch_tour(str(tour_id))
+        compiler = GpxCompiler(tour_data, self._api, no_poi=True)
+        gpx_xml = compiler.generate()
+        return gpx_xml.encode("utf-8")
